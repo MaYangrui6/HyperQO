@@ -199,8 +199,6 @@ class TreeBuilder:
                 torch.tensor(self.__alias_name(node),device = config.device,dtype = torch.long))
 
     def plan_to_feature_tree(self, plan):
-        
-        
         # children = plan["Plans"] if "Plans" in plan else []
         if "Plan" in plan:
             plan = plan["Plan"]
@@ -211,7 +209,7 @@ class TreeBuilder:
                 alias_idx_np = np.asarray([self.aliasname2id[plan["Alias"]]])
                 if isinstance(child_value[1],tuple):
                     raise TreeBuilderError("Node wasn't transparent, a join, or a scan: " + str(plan))
-                return (child_value[0],torch.tensor(alias_idx_np,device = config.device,dtype = torch.long))
+                return child_value[0], torch.tensor(alias_idx_np, device = config.device, dtype = torch.long)
             return child_value
         # print(plan)
         if is_join(plan):
@@ -220,7 +218,7 @@ class TreeBuilder:
             left = self.plan_to_feature_tree(children[0])
             right = self.plan_to_feature_tree(children[1])
             # print('is_join',my_vec)
-            return (my_vec, left, right)
+            return my_vec, left, right
 
         if is_scan(plan):
             assert not children
