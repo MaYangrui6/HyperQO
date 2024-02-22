@@ -4,14 +4,14 @@ class Config:
     def __init__(self,):
         self.datafile = 'JOBqueries.workload'
         self.schemaFile = "schema.sql"
-        self.database = 'imdb'
+        self.database = 'tpcds'
         self.user = 'postgres'
-        self.password = ""
+        self.password = "postgres"
         self.dataset = 'JOB'
         self.userName = self.user
         self.usegpu = True
         self.head_num = 10
-        self.input_size = 9
+        self.input_size = 37
         self.hidden_size = 64
         self.batch_size = 256
         self.ip = "127.0.0.1"
@@ -39,4 +39,3 @@ class Config:
         self.aliasname2id = {'kt1': 31, 'chn': 1, 'cn1': 29, 'mi_idx2': 36, 'cct1': 23, 'n': 21, 'a1': 39, 'kt2': 32, 'miidx': 18, 'it': 16, 'mi_idx1': 35, 'kt': 17, 'lt': 9, 'ci': 2, 't': 7, 'k': 8, 'start': 0, 'ml': 11, 'ct': 4, 't2': 28, 'rt': 6, 'it2': 13, 'an1': 37, 'at': 19, 'mc2': 34, 'pi': 26, 'mc': 5, 'mi_idx': 15, 'n1': 38, 'cn2': 30, 'mi': 14, 'it1': 12, 'cc': 22, 'cct2': 24, 'an': 20, 'mk': 10, 'cn': 3, 'it3': 25, 't1': 27, 'mc1': 33}
         self.modelpath = 'model/'
         self.offset = 20
-

@@ -83,22 +83,26 @@ class TreeNet:
         self.loss_function = MSEVAR(config.var_weight)
         # self.loss_function = F.smooth_l1_loss
 
-    def plan_to_value(self, tree_feature, sql_feature):
+    def plan_to_value(self,tree_feature,sql_feature):
         def recursive(tree_feature):
-            if isinstance(tree_feature[1], tuple):
+            if len(tree_feature) == 3:  # two child
                 feature = tree_feature[0]
-                # feature 里应该加入 tree height 信息
-                h_left, c_left = recursive(tree_feature=tree_feature[1])
-                h_right, c_right = recursive(tree_feature=tree_feature[2])
-                return self.value_network.tree_node(h_left, c_left, h_right, c_right, feature)
+                h_left,c_left = recursive(tree_feature=tree_feature[1])
+                h_right,c_right = recursive(tree_feature=tree_feature[2])
+                return self.value_network.tree_node(h_left,c_left,h_right,c_right,feature)
+            elif len(tree_feature) == 2: # one child
+                feature = tree_feature[0]
+                h_left,c_left = recursive(tree_feature=tree_feature[1])
+                h_right,c_right = self.value_network.zero_hc()
+                return self.value_network.tree_node(h_left,c_left,h_right,c_right,feature)
             else:
-                feature = tree_feature[0]
-                h_left, c_left = self.value_network.leaf(tree_feature[1])
-                h_right, c_right = self.value_network.zero_hc()
-                return self.value_network.tree_node(h_left, c_left, h_right, c_right, feature)
-
+                feature = tree_feature[0]  # no child
+                h_left,c_left = self.value_network.zero_hc()
+                h_right,c_right = self.value_network.zero_hc()
+                return self.value_network.tree_node(h_left,c_left,h_right,c_right,feature)
+                
         plan_feature = recursive(tree_feature=tree_feature)
-        multi_value = self.value_network.logits(plan_feature[0], sql_feature)
+        multi_value = self.value_network.logits(plan_feature[0],sql_feature)
         return multi_value
 
     def plan_to_value_fold(self, tree_feature, sql_feature, fold):

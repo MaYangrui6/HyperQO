@@ -30,7 +30,7 @@ class PGGRunner:
         self.config = PGConfig()
         self.need_latency_record = need_latency_record
 
-        self.cur.execute("load 'pg_hint_plan';")
+        # self.cur.execute("load 'pg_hint_plan';")
         global latency_record_file
         self.cost_plan_json = {}
         if need_latency_record:
