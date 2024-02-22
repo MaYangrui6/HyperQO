@@ -67,7 +67,7 @@ def randomPolicy(node):
             temp = node.state.getPossibleActions()
             action = random.choice(list(temp))
         except IndexError:
-            raise Exception("Non-terminal state has no possible actions: " + str(state))
+            raise Exception("Non-terminal state has no possible actions: " + str(node.state))
         newNode = treeNode(node.state.takeAction(action), node)
         node.children[action] = newNode
         if len(node.state.getPossibleActions()) == len(node.children):
