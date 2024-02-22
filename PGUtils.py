@@ -30,7 +30,7 @@ class PGGRunner:
         self.config = PGConfig()
         self.need_latency_record = need_latency_record
 
-        self.cur.execute("load 'pg_hint_plan';")
+        # self.cur.execute("load 'pg_hint_plan';")
         global latency_record_file
         self.cost_plan_json = {}
         if need_latency_record:
@@ -149,13 +149,13 @@ class PGGRunner:
         if sql in self.cost_plan_json:
             return self.cost_plan_json[sql]
         import time
-        startTime = time.time()
+        # startTime = time.time()
         self.cur.execute("SET statement_timeout = "+str(timeout)+ ";")
         self.cur.execute("SET geqo_threshold  = 12;")
         self.cur.execute("explain (COSTS, FORMAT JSON) "+sql)
         rows = self.cur.fetchall()
         plan_json = rows[0][0][0]
-        plan_json['Planning Time'] = time.time()-startTime
+        # plan_json['Planning Time'] = time.time()-startTime
         self.cost_plan_json[sql] = plan_json
         return plan_json
         

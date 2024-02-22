@@ -7,11 +7,11 @@ import torch.nn as nn
 from collections import namedtuple
 from ImportantConfig import Config
 from TreeLSTM import MSEVAR
+import random
 
 config = Config()
 Transition = namedtuple('Transition',
                         ('tree_feature', 'sql_feature', 'target_feature', 'mask', 'weight'))
-import random
 
 
 class ReplayMemory(object):
@@ -85,15 +85,19 @@ class TreeNet:
 
     def plan_to_value(self, tree_feature, sql_feature):
         def recursive(tree_feature):
-            if isinstance(tree_feature[1], tuple):
+            if len(tree_feature) == 3:  # two child
                 feature = tree_feature[0]
-                # feature 里应该加入 tree height 信息
                 h_left, c_left = recursive(tree_feature=tree_feature[1])
                 h_right, c_right = recursive(tree_feature=tree_feature[2])
                 return self.value_network.tree_node(h_left, c_left, h_right, c_right, feature)
-            else:
+            elif len(tree_feature) == 2:  # one child
                 feature = tree_feature[0]
-                h_left, c_left = self.value_network.leaf(tree_feature[1])
+                h_left, c_left = recursive(tree_feature=tree_feature[1])
+                h_right, c_right = self.value_network.zero_hc()
+                return self.value_network.tree_node(h_left, c_left, h_right, c_right, feature)
+            else:
+                feature = tree_feature[0]  # no child
+                h_left, c_left = self.value_network.zero_hc()
                 h_right, c_right = self.value_network.zero_hc()
                 return self.value_network.tree_node(h_left, c_left, h_right, c_right, feature)
 
@@ -166,7 +170,7 @@ class TreeNet:
     def loss(self, multi_value, target, var, optimize=True):
         loss_value = self.loss_function(multi_value=multi_value, target=target, var=var)
         if not optimize:
-            return loss_value.item()
+            return loss_value
         self.optimizer.zero_grad()
         loss_value.backward()
         for group in self.optimizer.param_groups:
@@ -174,7 +178,7 @@ class TreeNet:
                 if param.grad is not None:
                     param.grad.data.clamp_(-2, 2)
         self.optimizer.step()
-        return loss_value.item()
+        return loss_value
 
     def mean_and_variance(self, multi_value):
         mean_value = torch.mean(multi_value, dim=1).reshape(-1, 1)
@@ -191,7 +195,7 @@ class TreeNet:
         self.memory.push(tree_feature, sql_vec, target_value, mask, weight)
 
     def train(self, plan_json, sql_vec, target_value, mask, is_train=False):
-        tree_feature = self.tree_builder.plan_to_feature_tree(plan_json)
+        tree_feature = self.tree_builder.plan_to_feature_tree(plan_json, 0)
         # print("-----")
         # print(tree_feature[0],target_value)
         # print("-----")
@@ -293,7 +297,6 @@ class TreeNet:
     #     mean,variance  = self.mean_and_variance(multi_value=multi_value[:,:config.head_num])
     #     from math import e 
     #     return loss_value,mean,variance,self.value_extractor.decode(multi_value[:,config.head_num].item())
-
     # def predict(self,plan_json,sql_vec,target_value):
     #     tree_feature = self.tree_builder.plan_to_feature_tree(plan_json)
     #     target_feature = self.target_feature(target_value)

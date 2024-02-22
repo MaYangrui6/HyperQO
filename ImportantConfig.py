@@ -4,14 +4,14 @@ class Config:
     def __init__(self,):
         self.datafile = 'JOBqueries.workload'
         self.schemaFile = "schema.sql"
-        self.database = 'imdb'
+        self.database = 'tpcds'
         self.user = 'postgres'
-        self.password = ""
+        self.password = "postgres"
         self.dataset = 'JOB'
         self.userName = self.user
         self.usegpu = True
         self.head_num = 10
-        self.input_size = 9
+        self.input_size = 37
         self.hidden_size = 64
         self.batch_size = 256
         self.ip = "127.0.0.1"
