@@ -146,8 +146,8 @@ class SelfAttentionEncoderWithPositionalEmbedding(nn.Module):
 
     def _init_weights(self, init_range=0.1):
         # Weight initialization
-        self.linear_attention.weight.data.uniform_(-init_range, init_range)
-        self.linear_weights.weight.data.uniform_(-init_range, init_range)
+        nn.init.uniform_(self.linear_attention.weight, -init_range, init_range)
+        nn.init.uniform_(self.linear_weights.weight, -init_range, init_range)
 
     def _generate_positional_embedding(self, input_dim, max_sequence_length):
         position = torch.arange(0, max_sequence_length).unsqueeze(1).float()
@@ -164,7 +164,7 @@ class SelfAttentionEncoderWithPositionalEmbedding(nn.Module):
         input_data = input_data + self.positional_embedding[:, relative_position, :]
 
         # Adjust shape for attention computation
-        input_data = torch.unsqueeze(input_data, 0)  # [1, batch_size, seq_len, hidden_dim]
+        input_data = input_data.unsqueeze(0)  # [1, batch_size, seq_len, hidden_dim]
         compressed_embeddings = input_data.view(input_data.size(1), -1)  # [batch_size * seq_len, hidden_dim]
 
         # Attention computation
