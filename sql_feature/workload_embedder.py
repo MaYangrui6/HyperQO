@@ -3,7 +3,7 @@ from abc import ABC
 
 import gensim
 from PGUtils import PGGRunner
-from bag_of_predicates import BagOfPredicates
+from .bag_of_predicates import BagOfPredicates
 from sklearn.decomposition import PCA
 from gensim.models.fasttext import FastText
 

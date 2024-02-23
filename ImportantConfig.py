@@ -11,7 +11,7 @@ class Config:
         self.userName = self.user
         self.usegpu = True
         self.head_num = 10
-        self.input_size = 37
+        self.input_size = 36
         self.hidden_size = 64
         self.batch_size = 256
         self.ip = "127.0.0.1"

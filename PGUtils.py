@@ -145,6 +145,7 @@ class PGGRunner:
         self.cur.execute(sql)
         rows = self.cur.fetchall()
         return rows
+
     def getCostPlanJson(self,sql,timeout=300*1000):
         if sql in self.cost_plan_json:
             return self.cost_plan_json[sql]

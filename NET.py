@@ -99,7 +99,7 @@ class TreeNet:
                 feature = tree_feature[0]  # no child
                 h_left, c_left = self.value_network.zero_hc()
                 h_right, c_right = self.value_network.zero_hc()
-                return self.value_network.tree_node(h_left, c_left, h_right, c_right, feature)
+                return np.array(self.value_network.tree_node(h_left, c_left, h_right, c_right, feature))
 
         plan_feature = recursive(tree_feature=tree_feature)
         multi_value = self.value_network.logits(plan_feature[0], sql_feature)
