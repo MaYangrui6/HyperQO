@@ -1,5 +1,4 @@
 import torch
-import torch.nn.functional as F
 import torch.optim as optim
 import torchfold
 import numpy as np
@@ -7,7 +6,6 @@ import torch.nn as nn
 from collections import namedtuple
 from ImportantConfig import Config
 from TreeLSTM import MSEVAR
-import random
 
 config = Config()
 Transition = namedtuple('Transition',
@@ -99,72 +97,34 @@ class TreeNet:
                 feature = tree_feature[0]  # no child
                 h_left, c_left = self.value_network.zero_hc()
                 h_right, c_right = self.value_network.zero_hc()
-                return np.array(self.value_network.tree_node(h_left, c_left, h_right, c_right, feature))
+                return self.value_network.tree_node(h_left, c_left, h_right, c_right, feature)
 
         plan_feature = recursive(tree_feature=tree_feature)
         multi_value = self.value_network.logits(plan_feature[0], sql_feature)
         return multi_value
 
+    # TODO. 报错，需要修改
     def plan_to_value_fold(self, tree_feature, sql_feature, fold):
         def recursive(tree_feature):
-            if isinstance(tree_feature[1], tuple):
+            if len(tree_feature) == 3:  # two child
                 feature = tree_feature[0]
                 h_left, c_left = recursive(tree_feature=tree_feature[1]).split(2)
                 h_right, c_right = recursive(tree_feature=tree_feature[2]).split(2)
                 return fold.add('tree_node', h_left, c_left, h_right, c_right, feature)
-            else:
+            elif len(tree_feature) == 2:  # one child
                 feature = tree_feature[0]
                 h_left, c_left = fold.add('leaf', tree_feature[1]).split(2)
+                h_right, c_right = fold.add('zero_hc', 1).split(2)
+                return fold.add('tree_node', h_left, c_left, h_right, c_right, feature)
+            else:
+                feature = tree_feature[0]  # no child
+                h_left, c_left = fold.add('zero_hc', 1).split(2)
                 h_right, c_right = fold.add('zero_hc', 1).split(2)
                 return fold.add('tree_node', h_left, c_left, h_right, c_right, feature)
 
         plan_feature, c = recursive(tree_feature=tree_feature).split(2)
         # sql_feature = fold.add('sql_feature',sql_vec)
         multi_value = fold.add('logits', plan_feature, sql_feature)
-        return multi_value
-
-    def plan_to_value_linear_fold(self, tree_feature, sql_feature, fold):
-        plan_vec = np.zeros((1, config.max_alias_num))
-
-        def recursive(tree_feature, depth=1):
-            if isinstance(tree_feature[1], tuple):
-                feature = tree_feature[0]
-                recursive(tree_feature=tree_feature[1], depth=depth + 1)
-                recursive(tree_feature=tree_feature[2], depth=depth + 1)
-                return
-                # return fold.add('tree_node',h_left,c_left,h_right,c_right,feature)
-            else:
-                plan_vec[0][tree_feature[1].item()] = depth
-                return
-                # return fold.add('tree_node',h_left,c_left,h_right,c_right,feature)
-
-        recursive(tree_feature=tree_feature, depth=1)
-        plan_feature = torch.tensor(plan_vec, device=config.device, dtype=torch.float32).reshape(-1,
-                                                                                                 config.max_alias_num)
-        # sql_feature = fold.add('sql_feature',sql_vec)
-        multi_value = fold.add('logits_linear', plan_feature, sql_feature)
-        return multi_value
-
-    def plan_to_value_mlp_fold(self, tree_feature, sql_feature, fold):
-        plan_vec = np.zeros((1, config.max_alias_num))
-
-        def recursive(tree_feature, depth=1):
-            if isinstance(tree_feature[1], tuple):
-                feature = tree_feature[0]
-                recursive(tree_feature=tree_feature[1], depth=depth + 1)
-                recursive(tree_feature=tree_feature[2], depth=depth + 1)
-                return
-                # return fold.add('tree_node',h_left,c_left,h_right,c_right,feature)
-            else:
-                plan_vec[0][tree_feature[1].item()] = depth
-                return
-                # return fold.add('tree_node',h_left,c_left,h_right,c_right,feature)
-
-        recursive(tree_feature=tree_feature, depth=1)
-        plan_feature = torch.tensor(plan_vec, device=config.device, dtype=torch.float32).reshape(-1,
-                                                                                                 config.max_alias_num)
-        # sql_feature = fold.add('sql_feature',sql_vec)
-        multi_value = fold.add('logits_mlp', plan_feature, sql_feature)
         return multi_value
 
     def loss(self, multi_value, target, var, optimize=True):
@@ -287,26 +247,6 @@ class TreeNet:
         new_weight = [abs(x - target_values[idx]) * target_values[idx] for idx, x in enumerate(mean_list)]
         self.memory.updateWeight(samples_idx, new_weight)
         return loss_value, mean, variance, torch.exp(multi_value[:, config.head_num]).data.reshape(-1)
-
-    # def predict(self,plan_json,sql_vec,target_value):
-    #     tree_feature = self.tree_builder.plan_to_feature_tree(plan_json)
-    #     target_feature = self.target_feature(target_value)
-    #     sql_feature = self.value_network.sql_feature(sql_vec)
-    #     multi_value = self.plan_to_value(tree_feature=tree_feature,sql_feature = sql_feature)
-    #     loss_value = self.loss(multi_value=multi_value[:,:config.head_num],target=target_feature,optimize=False,var = multi_value[:,config.head_num])
-    #     mean,variance  = self.mean_and_variance(multi_value=multi_value[:,:config.head_num])
-    #     from math import e 
-    #     return loss_value,mean,variance,self.value_extractor.decode(multi_value[:,config.head_num].item())
-    # def predict(self,plan_json,sql_vec,target_value):
-    #     tree_feature = self.tree_builder.plan_to_feature_tree(plan_json)
-    #     target_feature = self.target_feature(target_value)
-    #     sql_feature = self.value_network.sql_feature(sql_vec)
-    #     multi_value = self.plan_to_value(tree_feature=tree_feature,sql_feature = sql_feature)
-    #     loss_value = self.loss(multi_value=multi_value[:,:config.head_num],target=target_feature,optimize=False,var = multi_value[:,config.head_num])
-    #     mean,variance  = self.mean_and_variance(multi_value=multi_value[:,:config.head_num])
-    #     from math import e 
-    #     return loss_value,mean,variance,self.value_extractor.decode(multi_value[:,config.head_num].item())
-    # def optimize(self,batch_size):
 
 
 MCTSTransition = namedtuple('MCTSTransition',

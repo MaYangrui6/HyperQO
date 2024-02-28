@@ -267,8 +267,7 @@ class TreeBuilder:
         feature = np.concatenate((arr, encode_operator_heap_type(node['Node Type']), cost_est_rows,
                                   [1, current_height, cost_reduction], NullFraction_DistinctValues))
         feature = torch.tensor(feature, device=config.device, dtype=torch.float32).reshape(-1, config.input_size)
-        return (feature,
-                torch.tensor(np.asarray([-1]), device=config.device, dtype=torch.long))  # self.__alias_name(node)用1代替
+        return feature
 
     def plan_to_feature_tree(self, plan, current_height):
         # children = plan["Plans"] if "Plans" in plan else []
@@ -294,13 +293,8 @@ class TreeBuilder:
             return (my_vec, left, right)
 
         if not children:
-            print(plan)
+            # print(plan)
             s = self.__featurize_scan(plan, current_height)
             return s
 
         raise TreeBuilderError("Node wasn't transparent, a join, or a scan: " + str(plan))
-
-
-
-
-

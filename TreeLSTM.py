@@ -81,17 +81,19 @@ class SPINN(nn.Module):
         self.sql_size = sql_size
         self.tree_lstm = TreeLSTM(input_size=input_size, hidden_size=hidden_size)
         self.sql_layer = nn.Linear(sql_size, hidden_size)
+        self.linear_M = nn.Linear(hidden_size, hidden_size)
 
         self.head_layer = nn.Sequential(nn.Linear(hidden_size * 2, hidden_size),
                                         nn.ReLU(),
                                         nn.Linear(hidden_size, head_num + 1),
+                                        nn.ReLU(),
                                         )
         self.table_embeddings = nn.Embedding(table_num, hidden_size)  # 2 * max_column_in_table * size)
         self.heads = nn.ModuleList([Head(self.hidden_size) for i in range(self.head_num + 1)])
         self.relu = nn.ReLU()
-        self.attention = SelfAttentionEncoderWithPositionalEmbedding(input_dim=input_size, attention_dim=attention_dim)
+        self.attention = SelfAttentionEncoderWithPositionalEmbedding(input_dim=hidden_size, attention_dim=attention_dim)
         self.H = []  # used to save all processed node for implementing attention mechanism
-        self.wf = nn.Parameter(torch.zeros(1, hidden_size, hidden_size).uniform_(-1, 1))
+        self.wf = nn.Parameter(torch.zeros(1, hidden_size, hidden_size).uniform_(-0.001, 0.001))  # 初始化为较小的值
 
     def leaf(self, alias_id):
         table_embedding = self.table_embeddings(alias_id)
@@ -107,11 +109,18 @@ class SPINN(nn.Module):
         return torch.tensor([target] * self.head_num, device=config.device, dtype=torch.float32).reshape(1, -1)
 
     def tree_node(self, h_left, c_left, h_right, c_right, feature):
+        if feature.dim() == 2:
+            feature = feature.squeeze(0)
         h, c = self.tree_lstm(h_left, c_left, h_right, c_right, feature)
         self.H.append(h)
-        M, alphas = self.attention.forward(self.H, relative_position=feature.height)
-        M = self.relu(torch.bmm(M, self.wf))
-        return M, alphas
+        M, alphas = self.attention.forward(self.H, relative_position=int(feature[-4]))
+        M = self.relu(M).squeeze(0)
+        # # 使用一个学习到的权重矩阵对 attention_weighted_M 进行处理
+        # weighted_attention_weighted_M = self.linear_M(M)
+        if feature[-4] == 0:
+            # 已生成 root 节点的向量化表示，清空 all processed node
+            self.H = []
+        return M, c
 
     def logits(self, encoding, sql_feature, prt=False):
         sql_hidden = self.relu(self.sql_layer(sql_feature))
@@ -157,15 +166,16 @@ class SelfAttentionEncoderWithPositionalEmbedding(nn.Module):
         pos_embedding = torch.zeros((max_sequence_length, input_dim))
         pos_embedding[:, 0::2] = torch.sin(position * div_term)
         pos_embedding[:, 1::2] = torch.cos(position * div_term)
-        return pos_embedding.unsqueeze(0)  # [1, max_sequence_length, input_dim]
+        return pos_embedding.unsqueeze(0)  # [1, max_sequence_length, hidden_dim]
 
     def forward(self, input_data, relative_position):
         # Input data shape: [batch_size, seq_len, hidden_dim]
-
+        input_data = torch.cat(input_data, dim=0)  # 将列表中的张量合并成一个张量
         # Add positional embedding
-        input_data = input_data + self.positional_embedding[:, relative_position, :]
+        input_data[-1] = input_data[-1] + self.positional_embedding[:, relative_position, :]
 
         # Adjust shape for attention computation
+        # input_data = torch.stack(input_data, dim=0)  # [batch_size, seq_len, hidden_dim]
         input_data = input_data.unsqueeze(0)  # [1, batch_size, seq_len, hidden_dim]
         compressed_embeddings = input_data.view(input_data.size(1), -1)  # [batch_size * seq_len, hidden_dim]
 
