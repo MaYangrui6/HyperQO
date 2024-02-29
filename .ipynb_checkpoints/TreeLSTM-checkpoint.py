@@ -102,7 +102,7 @@ class SPINN(nn.Module):
         return torch.tensor(feature, device=config.device, dtype=torch.float32).reshape(1, -1)
 
     def target_vec(self, target):
-        return torch.tensor([target] * self.head_num, device=config.device, dtype=torch.float32).reshape(1, -1)
+        return torch.tensor([target], device=config.device, dtype=torch.float32).reshape(1, -1)
 
     def tree_node(self, h_left, c_left, h_right, c_right, feature):
         h, c = self.tree_lstm(h_left, c_left, h_right, c_right, feature)

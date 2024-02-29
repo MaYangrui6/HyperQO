@@ -76,16 +76,11 @@ if __name__ == "__main__":
                 sql_vec = workload_embedder.get_embedding([sql])
 
                 # 计算损失
-                loss, mean, variance, exp_variance = treenet_model.train(plan_json, sql_vec, target_value, mask,
+                loss, pred_val = treenet_model.train(plan_json, sql_vec, target_value, mask,
                                                                          is_train=True)
-                print("train loss, mean, variance, exp_variance : {} - {} - {} - {}".format(loss, mean, variance, exp_variance))
+                print("train loss, pred_val : {} - {}".format(loss, pred_val))
                 # loss = treenet_model.optimize()
 
                 batch_loss += loss  # 累积批次损失
 
             print("batch loss : {}".format(batch_loss / Batch_Size))
-
-            # loss_value, mean, _ = treenet_model.optimize()
-            # print("optimize loss, mean : {} = {}".format(loss_value, mean))
-            # if mean <= 0.1:
-            #     break

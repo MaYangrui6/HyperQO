@@ -126,6 +126,7 @@ class Fold(object):
                     res.append(arg[0].get(values))
             elif all(isinstance(arg_item, int) for arg_item in arg):
                 if self._cuda:
+                    print(self._cuda)
                     var = Variable(
                         torch.cuda.LongTensor(arg), volatile=self.volatile)
                 else:
@@ -217,7 +218,7 @@ class Unfold(object):
     def __init__(self, nn, volatile=False, cuda=False):
         self.nn = nn
         self.volatile = volatile
-        self._cuda = cuda
+        self._cuda = False
 
     def cuda(self):
         self._cuda = True

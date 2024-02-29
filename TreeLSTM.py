@@ -85,7 +85,7 @@ class SPINN(nn.Module):
 
         self.head_layer = nn.Sequential(nn.Linear(hidden_size * 2, hidden_size),
                                         nn.ReLU(),
-                                        nn.Linear(hidden_size, head_num + 1),
+                                        nn.Linear(hidden_size, 1),
                                         nn.ReLU(),
                                         )
         self.table_embeddings = nn.Embedding(table_num, hidden_size)  # 2 * max_column_in_table * size)
@@ -106,7 +106,8 @@ class SPINN(nn.Module):
         return torch.tensor(np.array(feature), device=config.device, dtype=torch.float32).reshape(1, -1)
 
     def target_vec(self, target):
-        return torch.tensor([target] * self.head_num, device=config.device, dtype=torch.float32).reshape(1, -1)
+        print('target :%s',target)
+        return torch.tensor([target], device=config.device, dtype=torch.float32).reshape(1, -1)
 
     def tree_node(self, h_left, c_left, h_right, c_right, feature):
         if feature.dim() == 2:
@@ -125,6 +126,7 @@ class SPINN(nn.Module):
     def logits(self, encoding, sql_feature, prt=False):
         sql_hidden = self.relu(self.sql_layer(sql_feature))
         out_encoding = torch.cat([encoding, sql_hidden], dim=1)
+        print(f'out_encoding of sql :{out_encoding}')
         out = self.head_layer(out_encoding)
         return out
 

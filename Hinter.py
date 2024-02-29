@@ -154,18 +154,17 @@ class Hinter:
             self.mcts_searcher.train(tree_feature = self.model.tree_builder.plan_to_feature_tree(sample[0]),sql_vec = sql_vec,target_value = sample[1],alias_set=alias)
         
         if self.hinter_times<1000 or self.hinter_times%10==0:
-            loss=  self.model.optimize()[0]
-            loss1 = self.mcts_searcher.optimize()
+            loss=  self.model.optimize[0]
+            loss1 = self.mcts_searcher.optimize
             if self.hinter_times<1000:
-                loss=  self.model.optimize()[0]
-                loss1 = self.mcts_searcher.optimize()
+                loss=  self.model.optimize[0]
+                loss1 = self.mcts_searcher.optimize
             if loss>3:
-                loss=  self.model.optimize()[0]
-                loss1 = self.mcts_searcher.optimize()
+                loss=  self.model.optimize[0]
+                loss1 = self.mcts_searcher.optimize
             if loss>3:
-                loss=  self.model.optimize()[0]
-                loss1 = self.mcts_searcher.optimize()
-        
+                loss=  self.model.optimize[0]
+                loss1 = self.mcts_searcher.optimize
 
         assert len(set([len(self.hinter_runtime_list),len(self.pg_runningtime_list),len(self.mcts_time_list),len(self.hinter_planningtime_list),len(self.MHPE_time_list),len(self.hinter_runtime_list),len(self.chosen_plan),len(self.hinter_time_list)]))==1
         return self.pg_planningtime_list[-1],self.pg_runningtime_list[-1],self.mcts_time_list[-1],self.hinter_planningtime_list[-1],self.MHPE_time_list[-1],self.hinter_runtime_list[-1],self.chosen_plan[-1],self.hinter_time_list[-1]
