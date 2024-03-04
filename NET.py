@@ -159,9 +159,8 @@ class TreeNet:
     def train(self, plan_json, sql_vec, target_value, mask, is_train=False):
         tree_feature = self.tree_builder.plan_to_feature_tree(plan_json, 0)
         # target_feature = self.target_feature(target_value)
-        print(f'target_feature :{target_value}')
         sql_feature = self.value_network.sql_feature(sql_vec)
-        pred_value = self.plan_to_value(tree_feature=tree_feature, sql_feature=sql_feature)
+        pred_value = self.plan_to_value(tree_feature=tree_feature, sql_feature=sql_feature).squeeze()
         loss_value = self.loss(pred_value, target_value ,is_train)
         self.add_sample(tree_feature, sql_feature, target_value, mask, abs(pred_value - target_value))
         return loss_value, pred_value

@@ -83,11 +83,13 @@ class SPINN(nn.Module):
         self.sql_layer = nn.Linear(sql_size, hidden_size)
         self.linear_M = nn.Linear(hidden_size, hidden_size)
 
-        self.head_layer = nn.Sequential(nn.Linear(hidden_size * 2, hidden_size),
-                                        nn.ReLU(),
-                                        nn.Linear(hidden_size, 1),
-                                        nn.ReLU(),
-                                        )
+        self.head_layer = nn.Sequential(
+            nn.Linear(hidden_size * 2, hidden_size),
+            nn.ReLU(),
+            nn.Linear(hidden_size, 1),
+            nn.Sigmoid()  # 添加 Sigmoid 激活函数 限制范围0-1
+        )
+
         self.table_embeddings = nn.Embedding(table_num, hidden_size)  # 2 * max_column_in_table * size)
         self.heads = nn.ModuleList([Head(self.hidden_size) for i in range(self.head_num + 1)])
         self.relu = nn.ReLU()
@@ -126,7 +128,7 @@ class SPINN(nn.Module):
     def logits(self, encoding, sql_feature, prt=False):
         sql_hidden = self.relu(self.sql_layer(sql_feature))
         out_encoding = torch.cat([encoding, sql_hidden], dim=1)
-        print(f'out_encoding of sql :{out_encoding}')
+        # print(f'out_encoding of sql :{out_encoding}')
         out = self.head_layer(out_encoding)
         return out
 

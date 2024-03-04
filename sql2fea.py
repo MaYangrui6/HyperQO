@@ -42,7 +42,7 @@ class Sql2Vec:
 import json
 
 # 从 JSON 文件加载字典operater_counts
-with open('./information/operater_counts.json', 'r') as json_file:
+with open('/home/ubuntu/project/mayang/HyperQO/information/operater_counts.json', 'r') as json_file:
     operater_counts = json.load(json_file)
 
 JOIN_TYPES = ["Nested Loop", "Hash Join", "Merge Join"]
@@ -57,8 +57,8 @@ gather_and_materialize_operators = ['Gather', 'Materialize']
 subquery_and_cte_operators = ['Subquery Scan', 'CTE Scan']
 set_operation_and_others = ['SetOp', 'Append', 'Result', 'Unique', 'Limit']
 
-table_statistics = pd.read_csv('./information/table_statistics.csv').iloc[70:, :]  # 前70条系统表数据
-table_rows = pd.read_csv('./information/table_row_counts.csv')  # 前70条系统表数据
+table_statistics = pd.read_csv('/home/ubuntu/project/mayang/HyperQO/information/table_statistics.csv').iloc[70:, :]  # 前70条系统表数据
+table_rows = pd.read_csv('/home/ubuntu/project/mayang/HyperQO/information/table_row_counts.csv')  # 前70条系统表数据
 Column_to_NullFraction_dict = dict(zip(table_statistics['Column'], table_statistics['Null Fraction']))
 Column_to_DistinctValues_dict = dict(zip(table_statistics['Column'], table_statistics['Distinct Values']))
 Column_list = table_statistics['Column'].values
