@@ -10,7 +10,7 @@ import torch.nn.functional as F
 
 config = Config()
 Transition = namedtuple('Transition',
-                        ('tree_feature', 'sql_feature', 'target_feature', 'mask', 'weight'))
+                        ('tree_feature', 'sql_feature', 'target_feature', 'weight'))
 
 
 class ReplayMemory(object):
@@ -104,7 +104,6 @@ class TreeNet:
         multi_value = self.value_network.logits(plan_feature[0], sql_feature)
         return multi_value
 
-    # TODO. 报错，需要修改
     def plan_to_value_fold(self, tree_feature, sql_feature, fold):
         def recursive(tree_feature):
             if len(tree_feature) == 3:  # two child
@@ -126,10 +125,10 @@ class TreeNet:
         plan_feature, c = recursive(tree_feature=tree_feature).split(2)
         # sql_feature = fold.add('sql_feature',sql_vec)
         multi_value = fold.add('logits', plan_feature, sql_feature)
-        print('type(mutil_value) :',type(multi_value))
+        print('type(mutil_value) :', type(multi_value))
         return multi_value
 
-    def loss(self, pred_value, target,  optimize=True):
+    def loss(self, pred_value, target, optimize=True):
         loss_value = self.loss_function(pred_value, target)
         if not optimize:
             return loss_value
@@ -153,47 +152,33 @@ class TreeNet:
     def target_feature(self, target_value):
         return self.value_network.target_vec(target_value).reshape(1, -1)
 
-    def add_sample(self, tree_feature, sql_vec, target_value, mask, weight):
-        self.memory.push(tree_feature, sql_vec, target_value, mask, weight)
+    def add_sample(self, tree_feature, sql_vec, target_value, weight):
+        self.memory.push(tree_feature, sql_vec, target_value, weight)
 
-    def train(self, plan_json, sql_vec, target_value, mask, is_train=False):
+    def train(self, plan_json, sql_vec, target_value, is_train=False):
         tree_feature = self.tree_builder.plan_to_feature_tree(plan_json, 0)
         # target_feature = self.target_feature(target_value)
         sql_feature = self.value_network.sql_feature(sql_vec)
         pred_value = self.plan_to_value(tree_feature=tree_feature, sql_feature=sql_feature).squeeze()
         loss_value = self.loss(pred_value, target_value ,is_train)
-        self.add_sample(tree_feature, sql_feature, target_value, mask, abs(pred_value - target_value))
+        self.add_sample(tree_feature, sql_feature, target_value, abs(pred_value - target_value))
         return loss_value, pred_value
 
-    @property
     def optimize(self):
-        fold = torchfold.Fold(cuda=False)
         samples, samples_idx = self.memory.sample(config.batch_size)
-        target_features = []
-        masks = []
-        multi_list = []
-        target_values = []
-        print('sample number :',len(samples))
+        new_weights = []
+        batch_loss = 0
+        if len(samples) == 0:
+            return
         for one_sample in samples:
-            # print(one_sample)
-            multi_value = self.plan_to_value_fold(tree_feature=one_sample.tree_feature,
-                                                  sql_feature=one_sample.sql_feature, fold=fold)
-            masks.append(one_sample.mask)
-            target_features.append(one_sample.target_feature)
-            target_values.append(one_sample.target_feature.mean().item())
-            multi_list.append(multi_value)
-        print('multi_list :',multi_list)
-        print('len(multi_list) :',len(multi_list))
-        multi_value = fold.apply(self.value_network, [multi_list])[0]
-        mask = torch.cat(masks, dim=0)
-        target_feature = torch.cat(target_features, dim=0)
-        loss_value = self.loss(multi_value=multi_value[:, :config.head_num] * mask, target=target_feature * mask,
-                               optimize=True, var=multi_value[:, config.head_num])
-        mean, variance = self.mean_and_variance(multi_value=multi_value[:, :config.head_num])
-        mean_list = [mean] if isinstance(mean, float) else [x.item() for x in mean]
-        new_weight = [abs(x - target_values[idx]) * target_values[idx] for idx, x in enumerate(mean_list)]
-        self.memory.updateWeight(samples_idx, new_weight)
-        return loss_value, mean, variance, torch.exp(multi_value[:, config.head_num]).data.reshape(-1)
+            pred_value = self.plan_to_value(one_sample.tree_feature, one_sample.sql_feature)
+            # TODO. 这里理应乘以该查询的 original cost
+            new_weight = abs(pred_value - one_sample.target_feature)
+            new_weights.append(new_weight)
+            loss_value = self.loss(pred_value, one_sample.target_feature, optimize=True)
+            batch_loss += loss_value
+        self.memory.updateWeight(samples_idx, new_weights)
+        return batch_loss / len(samples)
 
 
 MCTSTransition = namedtuple('MCTSTransition',

@@ -9,14 +9,13 @@ class Config:
         self.database = 'tpcds'
         self.user = 'postgres'
         self.password = "postgres"
-        self.dataset = 'JOB'
         self.userName = self.user
         self.usegpu = True
         self.head_num = 10
         self.input_size = 36
         self.sql_size = 20
-        self.hidden_size = 36 * 4  # self.input_size 的整数倍
-        self.batch_size = 256
+        self.hidden_size = 36 * 2  # self.input_size 的整数倍
+        self.batch_size = 10
         self.ip = "127.0.0.1"
         self.port = 5432
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

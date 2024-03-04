@@ -1,3 +1,4 @@
+import os
 import random
 import torch
 import sys
@@ -22,6 +23,7 @@ from sklearn.model_selection import train_test_split
 config = Config()
 # sys.stdout = open(config.log_file, "w")
 random.seed(0)
+current_dir = os.path.dirname(__file__)
 
 if __name__ == "__main__":
     tree_builder = TreeBuilder()
@@ -39,12 +41,12 @@ if __name__ == "__main__":
 
     treenet_model = TreeNet(tree_builder, value_network)
 
-    mask = (torch.rand(1, config.head_num, device=config.device) < 0.9).long()
 
     train = pd.read_csv('/home/ubuntu/project/mayang/HyperQO/information/train.csv', index_col=0)
     queries = train['query'].values
 
-    workload_embedder = PredicateEmbedderDoc2Vec(queries, 20, pgrunner)
+    workload_embedder_path = os.path.join("./information/", "embedder.pth")
+    workload_embedder = PredicateEmbedderDoc2Vec(queries[:100], 20, pgrunner, file_name=workload_embedder_path)
 
     train.head()
 
@@ -88,7 +90,7 @@ if __name__ == "__main__":
                 sql_vec = workload_embedder.get_embedding([sql])
 
                 # 计算损失
-                loss, pred_val = treenet_model.train(plan_json, sql_vec, target_value, mask, is_train=True)
+                loss, pred_val = treenet_model.train(plan_json, sql_vec, target_value, is_train=True)
                 list_loss.append(loss)
                 list_pred.append(pred_val)
                 print(
@@ -111,7 +113,7 @@ if __name__ == "__main__":
                 sql_vec = workload_embedder.get_embedding([sql])
 
                 # 计算损失
-                loss, pred_val = treenet_model.train(plan_json, sql_vec, target_value, mask, is_train=False)
+                loss, pred_val = treenet_model.train(plan_json, sql_vec, target_value, is_train=False)
                 list_loss_val.append(loss)
                 list_pred_val.append(pred_val)
                 print("valid epo : {}, valid loss : {}, pred_val : {}, target_value : {},  diff : {}".format(batch_num,

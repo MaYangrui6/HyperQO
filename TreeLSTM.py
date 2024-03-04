@@ -37,7 +37,6 @@ class TreeLSTM(nn.Module):
         self.layer_norm_left = nn.LayerNorm(5 * hidden_size, elementwise_affine=elementwise_affine)
         self.layer_norm_right = nn.LayerNorm(5 * hidden_size, elementwise_affine=elementwise_affine)
         self.layer_norm_c = nn.LayerNorm(hidden_size, elementwise_affine=elementwise_affine)
-        self.dropout = nn.Dropout(p=0.2)
 
     def forward(self, h_left, c_left, h_right, c_right, feature):
         lstm_in = self.layer_norm_left(self.fc_left(h_left))
@@ -83,15 +82,15 @@ class SPINN(nn.Module):
         self.sql_layer = nn.Linear(sql_size, hidden_size)
         self.linear_M = nn.Linear(hidden_size, hidden_size)
 
-        self.head_layer = nn.Sequential(
-            nn.Linear(hidden_size * 2, hidden_size),
-            nn.ReLU(),
-            nn.Linear(hidden_size, 1),
-            nn.Sigmoid()  # 添加 Sigmoid 激活函数 限制范围0-1
-        )
-
+        self.head_layer = nn.Sequential(nn.Linear(hidden_size * 2, hidden_size),
+                                        nn.Dropout(p=0.4),
+                                        nn.ReLU(),
+                                        nn.Linear(hidden_size, 1),
+                                        nn.Sigmoid(),
+                                        )
         self.table_embeddings = nn.Embedding(table_num, hidden_size)  # 2 * max_column_in_table * size)
-        self.heads = nn.ModuleList([Head(self.hidden_size) for i in range(self.head_num + 1)])
+
+        self.heads = nn.ModuleList([Head(self.hidden_size) for _ in range(self.head_num + 1)])
         self.relu = nn.ReLU()
         self.attention = SelfAttentionEncoderWithPositionalEmbedding(input_dim=hidden_size, attention_dim=attention_dim)
         self.H = []  # used to save all processed node for implementing attention mechanism
@@ -125,10 +124,9 @@ class SPINN(nn.Module):
             self.H = []
         return M, c
 
-    def logits(self, encoding, sql_feature, prt=False):
+    def logits(self, encoding, sql_feature):
         sql_hidden = self.relu(self.sql_layer(sql_feature))
         out_encoding = torch.cat([encoding, sql_hidden], dim=1)
-        # print(f'out_encoding of sql :{out_encoding}')
         out = self.head_layer(out_encoding)
         return out
 
