@@ -15,7 +15,7 @@ class Config:
         self.input_size = 36
         self.sql_size = 20
         self.hidden_size = 36 * 2  # self.input_size 的整数倍
-        self.batch_size = 10
+        self.batch_size = 64
         self.ip = "127.0.0.1"
         self.port = 5432
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

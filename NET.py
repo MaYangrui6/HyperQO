@@ -34,7 +34,7 @@ class ReplayMemory(object):
         current_weight = 0
         for x in self.memory:
             current_weight += x.weight
-            weight.append(current_weight)
+            weight.append(x.weight)
         for idx in range(len(self.memory)):
             weight[idx] = weight[idx] / current_weight
         return random.choices(
@@ -45,13 +45,17 @@ class ReplayMemory(object):
 
     def sample(self, batch_size):
         if len(self.memory) > batch_size:
-            import random
-            normal_batch = batch_size // 2;
-            idx_list1 = []
-            for x in range(normal_batch):
-                idx_list1.append(random.randint(0, normal_batch - 1))
-            idx_list2 = self.weight_sample(batch_size=batch_size - normal_batch)
-            idx_list = idx_list1 + idx_list2
+            # import random
+            # normal_batch = batch_size // 2;
+            # idx_list1 = []
+            # for x in range(normal_batch):
+            #     idx_list1.append(random.randint(0, normal_batch - 1))
+            # idx_list2 = self.weight_sample(batch_size=batch_size - normal_batch)
+            # idx_list = idx_list1 + idx_list2
+            # res = []
+            # for idx in idx_list:
+            #     res.append(self.memory[idx])
+            idx_list = self.weight_sample(batch_size=batch_size)
             res = []
             for idx in idx_list:
                 res.append(self.memory[idx])
@@ -161,7 +165,9 @@ class TreeNet:
         sql_feature = self.value_network.sql_feature(sql_vec)
         pred_value = self.plan_to_value(tree_feature=tree_feature, sql_feature=sql_feature).squeeze()
         loss_value = self.loss(pred_value, target_value ,is_train)
-        self.add_sample(tree_feature, sql_feature, target_value, abs(pred_value - target_value))
+        pred_loss = abs(pred_value - target_value)
+        if pred_loss > 0.1:
+            self.add_sample(tree_feature, sql_feature, target_value, pred_loss)
         return loss_value, pred_value
 
     def optimize(self):
@@ -174,9 +180,18 @@ class TreeNet:
             pred_value = self.plan_to_value(one_sample.tree_feature, one_sample.sql_feature)
             # TODO. 这里理应乘以该查询的 original cost
             new_weight = abs(pred_value - one_sample.target_feature)
-            new_weights.append(new_weight)
+            new_weights.append(torch.squeeze(new_weight))
             loss_value = self.loss(pred_value, one_sample.target_feature, optimize=True)
             batch_loss += loss_value
+            print(
+                "weighted optimize: train loss : {}, pred_val : {}, target_value : {}, weight : {}, new weight : {}".format(
+                    loss_value,
+                    pred_value,
+                    one_sample.target_feature,
+                    one_sample.weight,
+                    new_weight
+                ))
+
         self.memory.updateWeight(samples_idx, new_weights)
         return batch_loss / len(samples)
 
