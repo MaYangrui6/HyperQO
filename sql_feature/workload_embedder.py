@@ -3,69 +3,47 @@ import os
 from abc import ABC
 
 import gensim
-from PGUtils import PGGRunner
 from .bag_of_predicates import BagOfPredicates
 from sklearn.decomposition import PCA
 from gensim.models.fasttext import FastText
+import ast
 
 logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
 
 
 class WorkloadEmbedder(object):
-    def __init__(self, query_texts, representation_size, database_runner: PGGRunner, retrieve_plans=False):
+    def __init__(self, query_texts, query_plans, representation_size):
         self.query_texts = query_texts
-        self.plans = []
-        self.database_runner = database_runner
+        self.plans = [ast.literal_eval(json)["Plan"] for json in query_plans]
         self.representation_size = representation_size
-
-        if retrieve_plans:
-            for query_text in query_texts:
-                plan_jsons = database_runner.getCostPlanJson(query_text)
-                self.plans.append(plan_jsons['Plan'])
 
     def get_embedding(self, workload):
         raise NotImplementedError
 
 
 class PredicateEmbedder(WorkloadEmbedder, ABC):
-    def __init__(self, query_texts, representation_size, database_runner, file_name):
-        WorkloadEmbedder.__init__(self, query_texts, representation_size, database_runner, retrieve_plans=True,)
-
+    def __init__(self, query_texts, query_plans, representation_size, database_runner, file_name):
+        WorkloadEmbedder.__init__(self, query_texts, query_plans, representation_size)
         self.plan_embedding_cache = {}
         self.relevant_predicates = []
         self.bop_creator = BagOfPredicates()
-
-        for plan in self.plans:
-            predicate = self.bop_creator.extract_predicates_from_plan(plan)
-            self.relevant_predicates.append(predicate)
-
-        # The plans are to generate operators
-        self.plans = []
-
-        self.dictionary = gensim.corpora.Dictionary(self.relevant_predicates)
-        logging.debug(f"Dictionary has {len(self.dictionary)} entries.")
-
-        self.bow_corpus = [self.dictionary.doc2bow(predicate) for predicate in self.relevant_predicates]
+        self.model = None
         self.file_name = file_name
+        self.database_runner = database_runner
 
         if self.file_name is not None and os.path.exists(self.file_name):
             # 如果文件名已经存在并且文件存在，则加载模型
-            self.model = self.load_model(self.file_name, query_texts, representation_size, database_runner)
+            self.dictionary = gensim.corpora.Dictionary.load_from_text(self.file_name + "_dict")
+            self.model = self.load_model(self.file_name)
         else:
-            # 否则，训练模型
-            self.model = None
-
-            # 其他的初始化代码
-            self.bop_creator = BagOfPredicates()
-            self.relevant_predicates = []
-
-            for query_text in query_texts:
-                plan_jsons = database_runner.getCostPlanJson(query_text)
-                self.plans.append(plan_jsons['Plan'])
-
             for plan in self.plans:
                 predicate = self.bop_creator.extract_predicates_from_plan(plan)
                 self.relevant_predicates.append(predicate)
+
+            self.dictionary = gensim.corpora.Dictionary(self.relevant_predicates)
+            logging.debug(f"Dictionary has {len(self.dictionary)} entries.")
+
+            self.bow_corpus = [self.dictionary.doc2bow(predicate) for predicate in self.relevant_predicates]
 
             self.dictionary = gensim.corpora.Dictionary(self.relevant_predicates)
             logging.debug(f"Dictionary has {len(self.dictionary)} entries.")
@@ -84,36 +62,14 @@ class PredicateEmbedder(WorkloadEmbedder, ABC):
         raise NotImplementedError
 
     def save_model(self, filename):
+        self.dictionary.save_as_text(filename + "_dict")
         self.model.save(filename)
 
     @classmethod
-    def load_model(cls, filename, query_texts, representation_size, database_runner):
+    def load_model(cls, filename):
         # 创建一个新的实例，然后调用模型的load方法
         instance = cls.__new__(cls)
-        instance.query_texts = query_texts
-        instance.database_runner = database_runner
-        instance.representation_size = representation_size
-        instance.plans = []
-
         instance.model = cls._load_model_from_file(filename)
-        instance.plan_embedding_cache = {}
-
-        instance.bop_creator = BagOfPredicates()
-        instance.relevant_predicates = []
-
-        # 重新加载相关的计划
-        for query_text in query_texts:
-            plan_jsons = instance.database_runner.getCostPlanJson(query_text)
-            instance.plans.append(plan_jsons['Plan'])
-
-        # 重新加载相关的谓词
-        for plan in instance.plans:
-            predicate = instance.bop_creator.extract_predicates_from_plan(plan)
-            instance.relevant_predicates.append(predicate)
-
-        # 初始化字典
-        instance.dictionary = gensim.corpora.Dictionary(instance.relevant_predicates)
-        logging.debug(f"Dictionary has {len(instance.dictionary)} entries.")
 
         return instance.model
 
@@ -149,8 +105,8 @@ class PredicateEmbedder(WorkloadEmbedder, ABC):
 
 
 class PredicateEmbedderPCA(PredicateEmbedder, ABC):
-    def __init__(self, query_texts, representation_size, database_runner, file_name):
-        PredicateEmbedder.__init__(self, query_texts, representation_size, database_runner, file_name)
+    def __init__(self, query_texts, query_plans, representation_size, database_runner, file_name):
+        PredicateEmbedder.__init__(self, query_texts, query_plans, representation_size, database_runner, file_name)
 
     def _to_full_corpus(self, corpus):
         new_corpus = []
@@ -178,15 +134,15 @@ class PredicateEmbedderPCA(PredicateEmbedder, ABC):
 
 
 class PredicateEmbedderDoc2Vec(PredicateEmbedder, ABC):
-    def __init__(self, query_texts, representation_size, database_runner, file_name):
-        PredicateEmbedder.__init__(self, query_texts, representation_size, database_runner, file_name)
+    def __init__(self, query_texts, query_plans, representation_size, database_runner, file_name):
+        PredicateEmbedder.__init__(self, query_texts, query_plans, representation_size, database_runner, file_name)
 
     def _create_model(self):
         tagged_predicates = []
         for idx, predicates in enumerate(self.relevant_predicates):
             tagged_predicates.append(gensim.models.doc2vec.TaggedDocument(predicates, [idx]))
 
-        self.model = gensim.models.doc2vec.Doc2Vec(vector_size=self.representation_size, min_count=3, epochs=400)
+        self.model = gensim.models.doc2vec.Doc2Vec(vector_size=self.representation_size, min_count=3, epochs=2000)
         self.model.build_vocab(tagged_predicates)
         self.model.train(tagged_predicates, total_examples=self.model.corpus_count, epochs=self.model.epochs)
 
@@ -196,8 +152,8 @@ class PredicateEmbedderDoc2Vec(PredicateEmbedder, ABC):
 
 
 class PredicateEmbedderLSIBOW(PredicateEmbedder):
-    def __init__(self, query_texts, representation_size, database_runner, file_name):
-        PredicateEmbedder.__init__(self, query_texts, representation_size, database_runner, file_name)
+    def __init__(self, query_texts, query_plans, representation_size, database_runner, file_name):
+        PredicateEmbedder.__init__(self, query_texts, query_plans, representation_size, database_runner, file_name)
 
     def _create_model(self):
         self.model = gensim.models.LsiModel(
@@ -222,8 +178,8 @@ class PredicateEmbedderLSIBOW(PredicateEmbedder):
 
 
 class PredicateEmbedderLSITFIDF(PredicateEmbedder, ABC):
-    def __init__(self, query_texts, representation_size, database_runner, file_name):
-        PredicateEmbedder.__init__(self, query_texts, representation_size, database_runner, file_name)
+    def __init__(self, query_texts, query_plans, representation_size, database_runner, file_name):
+        PredicateEmbedder.__init__(self, query_texts, query_plans, representation_size, database_runner, file_name)
 
     def _create_model(self):
         self.tfidf = gensim.models.TfidfModel(self.bow_corpus, normalize=True)
@@ -250,8 +206,8 @@ class PredicateEmbedderLSITFIDF(PredicateEmbedder, ABC):
 
 
 class PredicateEmbedderLDA(PredicateEmbedder, ABC):
-    def __init__(self, query_texts, representation_size, database_runner, file_name):
-        PredicateEmbedder.__init__(self, query_texts, representation_size, database_runner, file_name)
+    def __init__(self, query_texts, query_plans, representation_size, database_runner, file_name):
+        PredicateEmbedder.__init__(self, query_texts, query_plans, representation_size, database_runner, file_name)
 
     def _create_model(self):
         temp = self.dictionary[0]  # This is only to "load" the dictionary.
@@ -276,6 +232,3 @@ class PredicateEmbedderLDA(PredicateEmbedder, ABC):
         assert len(vector) == self.representation_size
 
         return vector
-
-
-

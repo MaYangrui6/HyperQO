@@ -23,6 +23,7 @@ config = Config()
 # sys.stdout = open(config.log_file, "w")
 random.seed(0)
 current_dir = os.path.dirname(__file__)
+import ast
 
 if __name__ == "__main__":
     tree_builder = TreeBuilder()
@@ -43,65 +44,69 @@ if __name__ == "__main__":
     train = pd.read_csv(current_dir + '/information/train.csv', index_col=0)
     queries = train['query'].values
 
+    plans_json = train["plan_json"].values
+
     workload_embedder_path = os.path.join("./information/", "embedder.pth")
-    workload_embedder = PredicateEmbedderDoc2Vec(queries[:], 20, pgrunner, file_name=workload_embedder_path)
+    workload_embedder = PredicateEmbedderDoc2Vec(queries[:], plans_json, 20, database_runner=pgrunner, file_name=workload_embedder_path)
+    sql_vec = workload_embedder.get_embedding([queries[0]])
+    print("sql_vec:", sql_vec)
 
-    train.head()
-
-    x = torch.tensor(train.index)
-    y = torch.tensor(train['cost_reduction_ratio'].values)
-
-    # 定义损失函数和优化器
-    criterion = nn.MSELoss()  # 例如，均方误差损失
-    optimizer = treenet_model.optimizer  # 例如，Adam 优化器
-
-    Batch_Size = 512
-    torch_dataset = Data.TensorDataset(x, y)
-    # train_set, val_set = train_test_split(torch_dataset, test_size=0.2, shuffle=True)
-
-    run_cnt = 1
-
-    list_loss = []
-    list_batch_loss = []
-    # 训练循环
-    batch_num = 0
-    for epoch in range(3):  # 例如，训练多个 epochs
-        loader = Data.DataLoader(dataset=torch_dataset,
-                                 batch_size=Batch_Size,
-                                 shuffle=True,
-                                 drop_last=False)
-        for batch_x, batch_y in loader:
-            actual_batch_size = len(batch_x)
-            batch_loss = 0
-            # training process
-            for num in range(actual_batch_size):
-                sql = queries[batch_x[num]]
-                target_value = batch_y[num]
-                plan_json = pgrunner.getCostPlanJson(sql)
-                sql_vec = workload_embedder.get_embedding([sql])
-
-                # 计算损失
-                loss, pred_val = treenet_model.train(plan_json, sql_vec, target_value, is_train=True)
-                batch_loss += loss
-                list_loss.append(loss)
-                print(
-                    "training count {} : train loss : {}, pred_val : {}, target_value : {},  diff : {}".format(run_cnt,
-                                                                                                               loss,
-                                                                                                               pred_val,
-                                                                                                               target_value,
-                                                                                                               abs(pred_val - target_value)))
-                run_cnt += 1
-            print("training average loss : {}".format(batch_loss / actual_batch_size))
-            optimize_loss = treenet_model.optimize()
-            list_batch_loss.append(batch_loss / actual_batch_size)
-            print("optimize batch loss : {}".format(optimize_loss))
-
-    # 保存模型
-    torch.save(treenet_model.value_network.state_dict(),
-               current_dir + '/information/model_value_network.pth')
-    res = pd.DataFrame()
-    res['loss'] = [float(x) for x in list_loss]
-    res.to_csv(current_dir + '/information/training_result.csv')
-    batch = pd.DataFrame()
-    batch['training batch loss'] = [float(x) for x in list_batch_loss]
-    batch.to_csv(current_dir + '/information/batch_result.csv')
+    # train.head()
+    #
+    # x = torch.tensor(train.index)
+    # y = torch.tensor(train['cost_reduction_ratio'].values)
+    #
+    # # 定义损失函数和优化器
+    # criterion = nn.MSELoss()  # 例如，均方误差损失
+    # optimizer = treenet_model.optimizer  # 例如，Adam 优化器
+    #
+    # Batch_Size = 512
+    # torch_dataset = Data.TensorDataset(x, y)
+    # # train_set, val_set = train_test_split(torch_dataset, test_size=0.2, shuffle=True)
+    #
+    # run_cnt = 1
+    #
+    # list_loss = []
+    # list_batch_loss = []
+    # # 训练循环
+    # batch_num = 0
+    # for epoch in range(3):  # 例如，训练多个 epochs
+    #     loader = Data.DataLoader(dataset=torch_dataset,
+    #                              batch_size=Batch_Size,
+    #                              shuffle=True,
+    #                              drop_last=False)
+    #     for batch_x, batch_y in loader:
+    #         actual_batch_size = len(batch_x)
+    #         batch_loss = 0
+    #         # training process
+    #         for num in range(actual_batch_size):
+    #             sql = queries[batch_x[num]]
+    #             target_value = batch_y[num]
+    #             plan_json = pgrunner.getCostPlanJson(sql)
+    #             sql_vec = workload_embedder.get_embedding([sql])
+    #
+    #             # 计算损失
+    #             loss, pred_val = treenet_model.train(plan_json, sql_vec, target_value, is_train=True)
+    #             batch_loss += loss
+    #             list_loss.append(loss)
+    #             print(
+    #                 "training count {} : train loss : {}, pred_val : {}, target_value : {},  diff : {}".format(run_cnt,
+    #                                                                                                            loss,
+    #                                                                                                            pred_val,
+    #                                                                                                            target_value,
+    #                                                                                                            abs(pred_val - target_value)))
+    #             run_cnt += 1
+    #         print("training average loss : {}".format(batch_loss / actual_batch_size))
+    #         optimize_loss = treenet_model.optimize()
+    #         list_batch_loss.append(batch_loss / actual_batch_size)
+    #         print("optimize batch loss : {}".format(optimize_loss))
+    #
+    # # 保存模型
+    # torch.save(treenet_model.value_network.state_dict(),
+    #            current_dir + '/information/model_value_network.pth')
+    # res = pd.DataFrame()
+    # res['loss'] = [float(x) for x in list_loss]
+    # res.to_csv(current_dir + '/information/training_result.csv')
+    # batch = pd.DataFrame()
+    # batch['training batch loss'] = [float(x) for x in list_batch_loss]
+    # batch.to_csv(current_dir + '/information/batch_result.csv')
