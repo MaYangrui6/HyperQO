@@ -139,9 +139,8 @@ class PredicateEmbedderDoc2Vec(PredicateEmbedder, ABC):
 
     def _create_model(self):
         tagged_predicates = []
-        for idx, predicates in enumerate(self.relevant_predicates):
-            tagged_predicates.append(gensim.models.doc2vec.TaggedDocument(predicates, [idx]))
-
+        for idx, predicate in enumerate(self.relevant_predicates):
+            tagged_predicates.append(gensim.models.doc2vec.TaggedDocument(predicate, [idx]))
         self.model = gensim.models.doc2vec.Doc2Vec(vector_size=self.representation_size, min_count=3, epochs=2000)
         self.model.build_vocab(tagged_predicates)
         self.model.train(tagged_predicates, total_examples=self.model.corpus_count, epochs=self.model.epochs)
