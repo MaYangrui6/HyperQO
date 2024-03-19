@@ -5,15 +5,15 @@ from gensim.models import TfidfModel
 from gensim.similarities import WordEmbeddingSimilarityIndex, SparseTermSimilarityMatrix, SoftCosineSimilarity
 from gensim.similarities.annoy import AnnoyIndexer
 
-from sql_feature.bag_of_predicates import BagOfPredicates
+from HyperQO.sql_feature.bag_of_predicates import BagOfPredicates
 
 
 def embed_queries_and_plans(sql_embedder, workload, workload_plans):
     embeddings = sql_embedder.get_embedding(workload)
     bag = BagOfPredicates()
     predicates = []
-    for plan in [ast.literal_eval(json)["Plan"] for json in workload_plans]:
-        predicate = bag.extract_predicates_from_plan(plan)
+    for plan in workload_plans:
+        predicate = bag.extract_predicates_from_plan(plan["Plan"])
         predicates.append(predicate)
     dictionary = Dictionary(predicates)
     return embeddings, predicates, dictionary
