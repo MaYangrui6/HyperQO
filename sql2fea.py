@@ -2,17 +2,13 @@ import sys
 
 sys.path.append(".")
 
-from JOBParser import TargetTable, FromTable, Comparison
 # max_column_in_table = 15
 import torch
-import torch
 import torch.nn as nn
-from itertools import count
 import numpy as np
-from PGUtils import pgrunner
-from JOBParser import TargetTable, FromTable, Comparison
-from ImportantConfig import Config
+from HyperQO.ImportantConfig import Config
 import pandas as pd
+import json
 
 config = Config()
 
@@ -38,8 +34,6 @@ class Sql2Vec:
     def to_vec(self, sql):
         return np.array([1]), set(['kt1'])
 
-
-import json
 
 # 从 JSON 文件加载字典operater_counts
 with open('/home/ubuntu/project/mayang/HyperQO/information/operater_counts.json', 'r') as json_file:

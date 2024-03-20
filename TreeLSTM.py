@@ -3,10 +3,8 @@ from os import DirEntry
 
 import numpy as np
 import torch
-from torch.nn import init
-import torchfold
 import torch.nn as nn
-from ImportantConfig import Config
+from HyperQO.ImportantConfig import Config
 
 config = Config()
 

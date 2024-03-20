@@ -1,11 +1,8 @@
 import torch
 import torch.optim as optim
-import torchfold
-import numpy as np
 import torch.nn as nn
 from collections import namedtuple
-from ImportantConfig import Config
-from TreeLSTM import MSEVAR
+from HyperQO.ImportantConfig import Config
 import torch.nn.functional as F
 
 config = Config()

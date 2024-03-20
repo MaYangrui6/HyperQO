@@ -1,7 +1,7 @@
 import psycopg2
 import json
 from math import log
-from ImportantConfig import Config
+from HyperQO.ImportantConfig import Config
 class PGConfig:
     def __init__(self):
         self.keepExecutedPlan =True
