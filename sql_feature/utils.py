@@ -21,9 +21,17 @@ def embed_queries_and_plans(sql_embedder, workload, workload_plans):
 
 def build_similarity_index(model, embeddings, predicates, dictionary, num_trees=40, num_best=10):
     indexer = AnnoyIndexer(model, num_trees=num_trees)
-    tfidf = TfidfModel(dictionary=dictionary)
     termsim_index = WordEmbeddingSimilarityIndex(embeddings, kwargs={'indexer': indexer})
-    similarity_matrix = SparseTermSimilarityMatrix(termsim_index, dictionary, tfidf)
-    tfidf_corpus = tfidf[[dictionary.doc2bow(predicate) for predicate in predicates]]
-    docsim_index = SoftCosineSimilarity(tfidf_corpus, similarity_matrix, num_best=num_best)
+    similarity_matrix = SparseTermSimilarityMatrix(termsim_index, dictionary)
+    corpus = [dictionary.doc2bow(predicate) for predicate in predicates]
+    docsim_index = SoftCosineSimilarity(corpus, similarity_matrix, num_best=num_best)
     return docsim_index
+
+# def build_similarity_index(model, embeddings, predicates, dictionary, num_trees=40, num_best=10):
+#     indexer = AnnoyIndexer(model, num_trees=num_trees)
+#     tfidf = TfidfModel(dictionary=dictionary)
+#     termsim_index = WordEmbeddingSimilarityIndex(embeddings, kwargs={'indexer': indexer})
+#     similarity_matrix = SparseTermSimilarityMatrix(termsim_index, dictionary, tfidf)
+#     tfidf_corpus = tfidf[[dictionary.doc2bow(predicate) for predicate in predicates]]
+#     docsim_index = SoftCosineSimilarity(tfidf_corpus, similarity_matrix, num_best=num_best)
+#     return docsim_index

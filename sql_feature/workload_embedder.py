@@ -45,11 +45,6 @@ class PredicateEmbedder(WorkloadEmbedder, ABC):
 
             self.bow_corpus = [self.dictionary.doc2bow(predicate) for predicate in self.relevant_predicates]
 
-            self.dictionary = gensim.corpora.Dictionary(self.relevant_predicates)
-            logging.debug(f"Dictionary has {len(self.dictionary)} entries.")
-
-            self.bow_corpus = [self.dictionary.doc2bow(predicate) for predicate in self.relevant_predicates]
-
             self._create_model()
 
             # 保存模型
@@ -138,12 +133,12 @@ class PredicateEmbedderDoc2Vec(PredicateEmbedder, ABC):
         PredicateEmbedder.__init__(self, query_texts, query_plans, representation_size, database_runner, file_name)
 
     def _create_model(self):
-        tagged_predicates = []
-        for idx, predicate in enumerate(self.relevant_predicates):
-            tagged_predicates.append(gensim.models.doc2vec.TaggedDocument(predicate, [idx]))
+        # tagged_predicates = []
+        # for idx, predicate in enumerate(self.relevant_predicates):
+        #     tagged_predicates.append(gensim.models.doc2vec.TaggedDocument(predicate, [idx]))
         self.model = gensim.models.doc2vec.Doc2Vec(vector_size=self.representation_size, min_count=3, epochs=2000)
-        self.model.build_vocab(tagged_predicates)
-        self.model.train(tagged_predicates, total_examples=self.model.corpus_count, epochs=self.model.epochs)
+        self.model.build_vocab(self.bow_corpus)
+        self.model.train(self.bow_corpus, total_examples=self.model.corpus_count, epochs=self.model.epochs)
 
     def _infer(self, bow, bop):
         vector = self.model.infer_vector(bop)
